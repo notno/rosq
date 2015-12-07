@@ -1,0 +1,67 @@
+// Describe textually a grammar for decimal numbers such as 0.01 or 52.221
+mpc_parser_t* Digit     = mpc_new("digit");
+mpc_parser_t* Decimal   = mpc_new("decimal");
+mpc_parser_t* Left      = mpc_new("left");
+mpc_parser_t* Right     = mpc_new("right");
+mpc_parser_t* Float     = mpc_new("float");
+
+mpca_lang(MPCA_LANG_DEFAULT,
+  "                                            \
+    digit: '0' | '1' | '2' | '3' | '4' | '5'   \
+            | '6' | '7' | '8' | '9';           \
+    decimal : '.';                             \
+    left: <digit>+;                            \
+    right: <digit>+;                           \
+    float: <left><decimal><right>;             \
+  ",
+  Digit, Decimal, Left, Right, Float);
+
+// Describe textually a grammar for web URLs such as http://www.buildyourownlisp.com
+mpc_parser_t* Protocol         = mpc_new("protocol");
+mpc_parser_t* CSS              = mpc_new("css"); // colon slash slash
+mpc_parser_t* Dot              = mpc_new("dot");
+mpc_parser_t* Subdomain        = mpc_new("subdomain");
+mpc_parser_t* Domain           = mpc_new("domain");
+mpc_parser_t* TLD              = mpc_new("tld"); // top level domain
+mpc_parser_t* URL              = mpc_new("url");
+
+mpca_lang(MPCA_LANG_DEFAULT,
+    "\
+        protocol: \"http\" | \"https\" ; \
+        css: \"://\" ;                   \
+        dot: '.' ;                       \
+        subdomain: \"www\"<dot> ;        \
+        domain: \"buildyourownlisp\" ;   \
+        tld: <dot>\"com\" ;              \
+        url: <protocol><css><subdomain>*<domain><tld>; \
+    ",
+    Protocol, CSS, Dot, Subdomain, Domain, TLD, URL);
+
+// Describe textually a grammar for simple English sentences such as the cat sat on the mat.
+mpca_lang(MPCA_LANG_DEFAULT,
+    "\
+        noun: \"cat\" | \"mat\" ;  /
+        verb: \"sat\"           ;  /
+        article: \"the\"        ;  /
+        preposition: \"on\"     ;  /
+        np: <article><noun>    ;  /
+        vp: <verb>              ;  /
+        pp: <preposition><np>   ;  /  
+        sentence: <np><vp><pp>* ;  /
+    "
+    );
+
+// If you are familiar with JSON, textually describe a grammar for it.
+mpca_lang(MPCA_LANG_DEFAULT,
+    "\
+        openObj: '{'; \
+        closeObj: '}'; \
+        colon: ':' ; \
+        comma: ',' ; \
+        key: \"any key\"; \
+        value: \"any value\" | <obj> ; \
+        member: <key><colon><value><comma>?; \
+        obj: <openObj><member>+<closeObj> ;\
+        JSON: <obj>
+    "
+    )
