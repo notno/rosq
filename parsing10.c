@@ -4,24 +4,27 @@
 #include "mpc.h"
 
 #ifdef _WIN32
-#include <string.h>
+  #include <string.h>
 
-static char buffer[2048];
+  static char buffer[2048];
 
-char* readline(char* prompt) {
-    fputs(prompt, stdout);
-    fgets(buffer, 2048, stdin);
-    char* cpy = malloc(strlen(buffer)+1);
-    strcopy(cpy, buffer);
-    cpy[strlen(cpy)-1] = '\0';
-    return cpy;
-}
+  char* readline(char* prompt) {
+      fputs(prompt, stdout);
+      fgets(buffer, 2048, stdin);
+      char* cpy = malloc(strlen(buffer)+1);
+      strcopy(cpy, buffer);
+      cpy[strlen(cpy)-1] = '\0';
+      return cpy;
+  }
 
-void add_history(char* unused) {}
+  void add_history(char* unused) {}
 
-#else
-#include <editline/readline.h>
+  #else
+  #include <editline/readline.h>
 #endif
+
+#define LASSERT(args, cond, err) \
+  if (!(cond)) { lval_del(args); return lval_err(err); }
 
 typedef struct lval {
     int type;
@@ -197,21 +200,12 @@ lval* lval_take(lval* v, int i) {
 }
 
 lval* builtin_head(lval* a) {
-  // Check Error Conditions
-  if (a->count != 1) {
-    lval_del(a);
-    return lval_err("Function 'head' passed too many arguments")
-  }
-
-  if (a->cell[0]->type != LVAL_QEXPR) {
-    lval_del(a);
-    return lval_err("Function 'head' passed incorrect types");
-  }
-
-  if (a->cell[0]->count == 0) {
-    lval_del(a);
-    return lval_err("Function 'head' passed {}!");
-  }
+  LASSERT(a, a->count == 1,
+    "Function 'head' passed incorrect type!");
+  LASSERT(a, a->cell[0]->type == LVAL_QEXPR,
+    "Function 'head' passed incerroct type!");
+  LASSERT(a, a->cell[0]->count != 0,
+    "Function 'head' passed {}!");
 
   // Otherwise take first argument
   lval* v = lval_take(a, 0);
@@ -223,23 +217,15 @@ lval* builtin_head(lval* a) {
 
 lval* builtin_tail(lval* a) {
   // Check error conditions
-  if (a->count !=1) {
-    lval_del(a);
-    return lval_err("Function 'tail' passed too many arguments!");
-  }
-
-  if (a->cell[0]->type != LVAL_QEXPR) {
-    lval_del(a);
-    return lval_err("Function 'tail'passed incorrect types!");
-  }
-
-  if (a->cell[0]->count == 0)  {
-    lval_del(a);
-    return lval_err("Function 'tail' passed {}!")
-  }
+  LASSERT(a, a->count ==1,
+    "Function 'tail' passed too many arguments!");
+  LASSERT(a, a->cell[0]->type == LVAL_QEXPR,
+    "Function 'tail' passed incorrect type!");
+  LASSERT(a, a->cell[0]->count != 0,
+    "Function 'tail' passed {}!");
 
   // Take first argument
-  lval& v = lval_take(a, 0);
+  lval* v = lval_take(a, 0);
 
   // Delete first element and return
   lval_del(lval_pop(v, 0));
