@@ -258,7 +258,7 @@ lval* lval_eval_sexpr(lval* v) {
 }
 
 lval* lval_eval(lval* v) {
-  // Evaluate Sexpressions
+  // Evaluate S-Expressions
   if (v->type == LVAL_SEXPR) { return lval_eval_sexpr(v); }
   // All other lval types remain the same
   return v;

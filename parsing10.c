@@ -42,7 +42,20 @@ enum { LVAL_NUM, LVAL_ERR, LVAL_SYM, LVAL_SEXPR, LVAL_QEXPR };
 // Forward declare functions
 lval* lval_add(lval* v, lval* x);
 lval* lval_eval(lval* v);
+lval* builtin(lval* a, char* func);
 void lval_print(lval* v);
+
+/*
+ * LVAL CONSTRUCTOR FUNCTIONS
+ *
+ * lval_num
+ * lval_err
+ * lval_sym
+ * lval_sexpr
+ * lval_qexpr
+ * lval_eval_sexpr
+ * lval_eval
+ */
 
 // Construct a pointer to a new Number lval
 lval* lval_num(long x) {
@@ -79,6 +92,7 @@ lval* lval_sexpr(void) {
   return v;
 }
 
+// A pointer to a new empty Qexpr lval
 lval* lval_qexpr(void) {
   lval* v = malloc(sizeof(lval));
   v->type = LVAL_QEXPR;
@@ -86,6 +100,19 @@ lval* lval_qexpr(void) {
   v->cell = NULL;
   return v;
 }
+
+/* LVAL HELPER FUNCTIONS
+ *
+ * lval_del
+ * lval_read_num
+ * lval_read
+ * lval_add
+ * lval_expr_print
+ * lval_print
+ * lval_println
+ * lval_pop
+ * lval_take
+*/
 
 void lval_del(lval* v) {
   switch (v->type) {
@@ -199,6 +226,58 @@ lval* lval_take(lval* v, int i) {
   return x;
 }
 
+lval* lval_eval_sexpr(lval* v) {
+
+  // Evaluate children
+  for (int i = 0; i < v->count; i++) {
+    v->cell[i] = lval_eval(v->cell[i]);
+  }
+
+  // Error Checking
+  for (int i = 0; i  < v->count; i++) {
+    if (v->cell[i]->type == LVAL_ERR) { return lval_take(v, i); }
+  }
+
+  // Empty Expression
+  if (v->count == 0) { return v; }
+
+  // Single Expression
+  if (v->count==1) { return lval_take(v, 0); }
+
+  // Ensure First Element is Symbol
+  lval* f = lval_pop(v, 0);
+  if (f->type != LVAL_SYM) {
+    lval_del(f); lval_del(v);
+    return lval_err("S-expression does not start with symbol!");
+  }
+
+  // Call builtin with operator
+  lval* result = builtin(v, f->sym);
+  lval_del(f);
+  return result;
+}
+
+lval* lval_eval(lval* v) {
+  // Evaluate S-Expressions
+  if (v->type == LVAL_SEXPR) { return lval_eval_sexpr(v); }
+  // All other lval types remain the same
+  return v;
+}
+
+/*
+ *  Rosq Built In Functions
+ *  builtin_head() returns just the first element, deletes rest
+ *  builtin_tail() deletes first element, returns rest
+ *  builtin_list() turns things into a list S-Expression
+ *  builtin_join() joins 2+ Q-Expressions
+ *  builtin_eval() evaluates contents of a Q-Expression
+ *  builtin_cons() takes a value and a Q-Expression and appends the value to the front of the Q-Expression
+ *  builtin_len() returns the number of elements in a Q-Expression
+ *  builtin_init() returns all of a Q-Expression except the final element
+ *
+ *  builtin() is their switch
+ */
+
 lval* builtin_head(lval* a) {
   LASSERT(a, a->count == 1,
     "Function 'head' passed incorrect type!");
@@ -212,6 +291,23 @@ lval* builtin_head(lval* a) {
 
   // Delete all elements that are not head and return
   while (v->count > 1) { lval_del(lval_pop(v, 1)); }
+  return v;
+}
+
+lval* builtin_tail(lval* a) {
+  // Check error conditions
+  LASSERT(a, a->count ==1,
+    "Function 'tail' passed too many arguments!");
+  LASSERT(a, a->cell[0]->type == LVAL_QEXPR,
+    "Function 'tail' passed incorrect type!");
+  LASSERT(a, a->cell[0]->count != 0,
+    "Function 'tail' passed {}!");
+
+  // Take first argument
+  lval* v = lval_take(a, 0);
+
+  // Delete first element and return
+  lval_del(lval_pop(v, 0));
   return v;
 }
 
@@ -258,21 +354,27 @@ lval* builtin_eval(lval* a) {
     return lval_eval(x);
 }
 
-lval* builtin_tail(lval* a) {
-  // Check error conditions
-  LASSERT(a, a->count ==1,
-    "Function 'tail' passed too many arguments!");
-  LASSERT(a, a->cell[0]->type == LVAL_QEXPR,
-    "Function 'tail' passed incorrect type!");
-  LASSERT(a, a->cell[0]->count != 0,
-    "Function 'tail' passed {}!");
+lval* builtin_cons(lval* a) {
+  LASSERT(a, a->cell[0]->type == LVAL_NUM,
+    "Function 'cons' needs first argument to be an number");
+  LASSERT(a, a->cell[1]->type == LVAL_QEXPR,
+    "Function 'cons' needs second argument to be a Q-Expression");
 
-  // Take first argument
-  lval* v = lval_take(a, 0);
+  // New Q-Expression
+  lval* newQ = lval_qexpr();
+  newQ = lval_add(newQ, lval_pop(a, 0));
+  lval* oldQ = lval_take(a, 0);
+  newQ = lval_join(newQ, oldQ);
 
-  // Delete first element and return
-  lval_del(lval_pop(v, 0));
-  return v;
+  return newQ;
+}
+
+lval* builtin_len(lval* a) {
+
+}
+
+lval* builtin_init(lval* a) {
+
 }
 
 lval* builtin_op(lval* a, char* op) {
@@ -322,48 +424,17 @@ lval* builtin(lval* a, char* func) {
   if (strcmp("tail", func) == 0) { return builtin_tail(a); }
   if (strcmp("join", func) == 0) { return builtin_join(a); }
   if (strcmp("eval", func) == 0) { return builtin_eval(a); }
+  if (strcmp("cons", func) == 0) { return builtin_cons(a); }
+  if (strcmp("len",  func) == 0) { return builtin_len(a); }
+  if (strcmp("init", func) == 0) { return builtin_init(a); }
   if (strstr("+s/*", func)) { return builtin_op(a, func); }
   lval_del(a);
   return lval_err("Unknown Function!");
 }
 
-lval* lval_eval_sexpr(lval* v) {
-
-  // Evaluate children
-  for (int i = 0; i < v->count; i++) {
-    v->cell[i] = lval_eval(v->cell[i]);
-  }
-
-  // Error Checking
-  for (int i = 0; i  < v->count; i++) {
-    if (v->cell[i]->type == LVAL_ERR) { return lval_take(v, i); }
-  }
-
-  // Empty Expression
-  if (v->count == 0) { return v; }
-
-  // Single Expression
-  if (v->count==1) { return lval_take(v, 0); }
-
-  // Ensure First Element is Symbol
-  lval* f = lval_pop(v, 0);
-  if (f->type != LVAL_SYM) {
-    lval_del(f); lval_del(v);
-    return lval_err("S-expression does not start with symbol!");
-  }
-
-  // Call builtin with operator
-  lval* result = builtin(v, f->sym);
-  lval_del(f);
-  return result;
-}
-
-lval* lval_eval(lval* v) {
-  // Evaluate Sexpressions
-  if (v->type == LVAL_SEXPR) { return lval_eval_sexpr(v); }
-  // All other lval types remain the same
-  return v;
-}
+/*
+ *  MAIN
+ */
 
 int main(int argc, char** argv) {
     mpc_parser_t* Number   = mpc_new("number");
@@ -377,7 +448,8 @@ int main(int argc, char** argv) {
         "                                               \
             number   : /-?[0-9]+/ ;                     \
             symbol   : \"list\" | \"head\" | \"tail\"   \
-                     | \"join\" | \"eval\" | '+' | '-'  \
+                     | \"join\" | \"eval\" | \"cons\"   \
+                     | \"len\" | \"init\" | '+' | '-'   \
                      | '*' | '/' | '%' ;                \
             sexpr    : '(' <expr>* ')' ;                \
             qexpr    : '{' <expr>* '}' ;                \
