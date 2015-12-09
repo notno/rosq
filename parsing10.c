@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "mpc.h"
 
@@ -25,6 +26,10 @@
 
 #define LASSERT(args, cond, err) \
   if (!(cond)) { lval_del(args); return lval_err(err); }
+#define LARGSERT(args, num_needed) \
+  if (args->count != num_needed) {lval_del(args); return lval_err("Wrong number of arguments");}
+#define LEMPTY(args) \
+  if (args->count == 0) { lval_del(args); return lval_err("Arguments missing."); }
 
 typedef struct lval {
     int type;
@@ -42,6 +47,7 @@ enum { LVAL_NUM, LVAL_ERR, LVAL_SYM, LVAL_SEXPR, LVAL_QEXPR };
 // Forward declare functions
 lval* lval_add(lval* v, lval* x);
 lval* lval_eval(lval* v);
+lval* lval_pop(lval* v, int i);
 lval* builtin(lval* a, char* func);
 void lval_print(lval* v);
 
@@ -110,6 +116,7 @@ lval* lval_qexpr(void) {
  * lval_expr_print
  * lval_print
  * lval_println
+ * lval_join
  * lval_pop
  * lval_take
 */
@@ -205,6 +212,17 @@ void lval_print(lval* v) {
 /* print an 'lval' followed by a newline */
 void lval_println(lval* v) { lval_print(v); putchar('\n'); }
 
+lval* lval_join(lval* x , lval* y) {
+  // For each cell in 'y' add it to 'x'
+  while (y->count) {
+    x = lval_add(x, lval_pop(y, 0));
+  }
+
+  // Delete the empty 'y' and return 'x'
+  lval_del(y);
+  return x;
+}
+
 lval* lval_pop(lval* v, int i) {
   // find the item at i
   lval* x = v->cell[i];
@@ -266,25 +284,25 @@ lval* lval_eval(lval* v) {
 
 /*
  *  Rosq Built In Functions
- *  builtin_head() returns just the first element, deletes rest
- *  builtin_tail() deletes first element, returns rest
- *  builtin_list() turns things into a list S-Expression
- *  builtin_join() joins 2+ Q-Expressions
- *  builtin_eval() evaluates contents of a Q-Expression
- *  builtin_cons() takes a value and a Q-Expression and appends the value to the front of the Q-Expression
- *  builtin_len() returns the number of elements in a Q-Expression
- *  builtin_init() returns all of a Q-Expression except the final element
- *
- *  builtin() is their switch
  */
 
+//  builtin_len() returns the number of elements in a Q-Expression
+lval* builtin_len(lval* a) {
+   LASSERT(a, a->cell[0]->type == LVAL_QEXPR,
+     "Function 'len' takes a Q-Expression as its argument");
+   LARGSERT(a, 1);
+
+   lval* count = lval_num(a->cell[0]->count);
+
+   return count;
+}
+
+//  builtin_head() returns just the first element, deletes rest
 lval* builtin_head(lval* a) {
-  LASSERT(a, a->count == 1,
-    "Function 'head' passed incorrect type!");
+  LARGSERT(a, 1);
+  LEMPTY(a);
   LASSERT(a, a->cell[0]->type == LVAL_QEXPR,
-    "Function 'head' passed incerroct type!");
-  LASSERT(a, a->cell[0]->count != 0,
-    "Function 'head' passed {}!");
+    "Function 'head' passed incorrect type!");
 
   // Otherwise take first argument
   lval* v = lval_take(a, 0);
@@ -294,14 +312,13 @@ lval* builtin_head(lval* a) {
   return v;
 }
 
+//  builtin_tail() deletes first element, returns rest
 lval* builtin_tail(lval* a) {
   // Check error conditions
-  LASSERT(a, a->count ==1,
-    "Function 'tail' passed too many arguments!");
+  LARGSERT(a, 1);
   LASSERT(a, a->cell[0]->type == LVAL_QEXPR,
     "Function 'tail' passed incorrect type!");
-  LASSERT(a, a->cell[0]->count != 0,
-    "Function 'tail' passed {}!");
+  LEMPTY(a);
 
   // Take first argument
   lval* v = lval_take(a, 0);
@@ -311,22 +328,26 @@ lval* builtin_tail(lval* a) {
   return v;
 }
 
+//  builtin_init() returns all of a Q-Expression except the final element
+lval* builtin_init(lval* a) {
+  LARGSERT(a, 1);
+  LASSERT(a, a->cell[0]->type == LVAL_QEXPR,
+    "Function 'init' passed incorrect type. Needs Q-Expression");
+  LEMPTY(a);
+
+  lval* v = lval_take(a, 0);
+
+  lval_pop(v, v->count - 1);
+  return v;
+}
+
+//  builtin_list() turns things into a list S-Expression
 lval* builtin_list(lval* a) {
   a->type = LVAL_QEXPR;
   return a;
 }
 
-lval* lval_join(lval* x , lval* y) {
-  // For each cell in 'y' add it to 'x'
-  while (y->count) {
-    x = lval_add(x, lval_pop(y, 0));
-  }
-
-  // Delete the empty 'y' and return 'x'
-  lval_del(y);
-  return x;
-}
-
+//  builtin_join() joins 2+ Q-Expressions
 lval* builtin_join(lval* a) {
   for (int i = 0; i < a->count; i++) {
     LASSERT(a, a->cell[i]->type == LVAL_QEXPR,
@@ -343,20 +364,9 @@ lval* builtin_join(lval* a) {
   return x;
 }
 
-lval* builtin_eval(lval* a) {
-  LASSERT(a, a->count == 1,
-    "Function 'eval' passed too many arguments!");
-  LASSERT(a, a->cell[0]->type == LVAL_QEXPR,
-    "Function 'eval' passed incorrect type!");
-
-    lval* x = lval_take(a, 0);
-    x->type = LVAL_SEXPR;
-    return lval_eval(x);
-}
-
+//  builtin_cons() takes a value and a Q-Expression and appends the value to the front of the Q-Expression
 lval* builtin_cons(lval* a) {
-  LASSERT(a, a->count == 2,
-    "Function 'cons' takes exactly two arguments");
+  LARGSERT(a, 2);
   LASSERT(a, a->cell[0]->type == LVAL_NUM,
     "Function 'cons' needs first argument to be an number");
   LASSERT(a, a->cell[1]->type == LVAL_QEXPR,
@@ -371,21 +381,18 @@ lval* builtin_cons(lval* a) {
   return newQ;
 }
 
-lval* builtin_len(lval* a) {
+//  builtin_eval() evaluates contents of a Q-Expression
+lval* builtin_eval(lval* a) {
+  LARGSERT(a, 1);
   LASSERT(a, a->cell[0]->type == LVAL_QEXPR,
-    "Function 'len' takes a Q-Expression as its argument");
-  LASSERT(a, a->count == 1,
-    "Function 'len' takes only one argument")
+    "Function 'eval' passed incorrect type!");
 
-  lval* count = lval_num(a->cell[0]->count);
-
-  return count;
+    lval* x = lval_take(a, 0);
+    x->type = LVAL_SEXPR;
+    return lval_eval(x);
 }
 
-lval* builtin_init(lval* a) {
-
-}
-
+//  builtin_op() evaluates arithmetical operations
 lval* builtin_op(lval* a, char* op) {
   // Ensure all arguments are numbers
   for (int i = 0; i < a->count; i++) {
@@ -427,6 +434,7 @@ lval* builtin_op(lval* a, char* op) {
   lval_del(a); return x;
 }
 
+//  builtin() is the switch
 lval* builtin(lval* a, char* func) {
   if (strcmp("list", func) == 0) { return builtin_list(a); }
   if (strcmp("head", func) == 0) { return builtin_head(a); }
