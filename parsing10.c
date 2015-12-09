@@ -355,6 +355,8 @@ lval* builtin_eval(lval* a) {
 }
 
 lval* builtin_cons(lval* a) {
+  LASSERT(a, a->count == 2,
+    "Function 'cons' takes exactly two arguments");
   LASSERT(a, a->cell[0]->type == LVAL_NUM,
     "Function 'cons' needs first argument to be an number");
   LASSERT(a, a->cell[1]->type == LVAL_QEXPR,
@@ -370,7 +372,14 @@ lval* builtin_cons(lval* a) {
 }
 
 lval* builtin_len(lval* a) {
+  LASSERT(a, a->cell[0]->type == LVAL_QEXPR,
+    "Function 'len' takes a Q-Expression as its argument");
+  LASSERT(a, a->count == 1,
+    "Function 'len' takes only one argument")
 
+  lval* count = lval_num(a->cell[0]->count);
+
+  return count;
 }
 
 lval* builtin_init(lval* a) {
