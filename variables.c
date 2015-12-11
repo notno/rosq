@@ -70,6 +70,7 @@ lval* lenv_get(lenv* e, lval* k);
 void lenv_put(lenv *e, lval *k, lval *v);
 void lenv_add_builtin(lenv *e, char *name, lbuiltin func);
 void lenv_add_builtins(lenv *e);
+void lenv_print(lenv *e);
 
 lval *lval_fun(lbuiltin func);
 lval* lval_num(long x);
@@ -106,7 +107,8 @@ lval *builtin_add(lenv *e, lval *a);
 lval *builtin_sub(lenv *e, lval *a);
 lval *builtin_mul(lenv *e, lval *a);
 lval *builtin_div(lenv *e, lval *a);
-lval* builtin(lenv *e, lval *a, char *func);
+lval *builtin_env(lenv *e, lval *a);
+lval *builtin_exit();
 
 // Lisp Value
 struct lval {
@@ -190,9 +192,16 @@ void lenv_put(lenv *e, lval *k, lval *v) {
   strcpy(e->syms[e->count-1], k->sym);
 }
 
+void lenv_print(lenv *e) {
+  for (int i = 0; i < e->count; i++) {
+    printf("%s\n", e->syms[i]);
+  }
+}
+
 void lenv_add_builtin(lenv *e, char *name, lbuiltin func) {
   lval *k = lval_sym(name);
   lval *v = lval_fun(func);
+
   lenv_put(e, k, v);
   lval_del(k); lval_del(v);
 }
@@ -204,6 +213,9 @@ void lenv_add_builtins(lenv *e) {
   lenv_add_builtin(e, "tail", builtin_tail);
   lenv_add_builtin(e, "eval", builtin_eval);
   lenv_add_builtin(e, "join", builtin_join);
+  lenv_add_builtin(e, "len",  builtin_len);
+  lenv_add_builtin(e, "cons", builtin_cons);
+  lenv_add_builtin(e, "init", builtin_init);
 
   // Mathematical Functions
   lenv_add_builtin(e, "+", builtin_add);
@@ -213,6 +225,10 @@ void lenv_add_builtins(lenv *e) {
 
   // Variable Functions
   lenv_add_builtin(e, "def", builtin_def);
+
+  // Environment functions
+  lenv_add_builtin(e, "env", builtin_env);
+  lenv_add_builtin(e, "exit", builtin_exit);
 }
 
 
@@ -517,6 +533,10 @@ lval *lval_eval(lenv *e, lval *v) {
 lval *builtin_def(lenv *e, lval *a) {
   LASSERT_TYPE(a, "def", 0, LVAL_QEXPR);
 
+  // TODO: Ensure a builtin variable does not exist with this name
+  LASSERT(a, a,
+    "Cannot redefine a builtin variable");
+
   // first argument is a symbol list
   lval *syms = a->cell[0];
 
@@ -686,35 +706,28 @@ lval* builtin_op(lenv *e, lval *a, char* op) {
   lval_del(a); return x;
 }
 
-lval *builtin_add(lenv *e, lval *a){
+lval *builtin_add(lenv *e, lval *a) {
   return builtin_op(e, a, "+");
 }
-lval *builtin_sub(lenv *e, lval *a){
+lval *builtin_sub(lenv *e, lval *a) {
   return builtin_op(e, a, "-");
 }
-lval *builtin_mul(lenv *e, lval *a){
+lval *builtin_mul(lenv *e, lval *a) {
   return builtin_op(e, a, "*");
 }
-lval *builtin_div(lenv *e, lval *a){
+lval *builtin_div(lenv *e, lval *a) {
   return builtin_op(e, a, "/");
 }
 
-//  builtin() is the switch
-lval* builtin(lenv *e, lval *a, char *func) {
-  if (strcmp("list", func) == 0) { return builtin_list(e, a); }
-  if (strcmp("head", func) == 0) { return builtin_head(e, a); }
-  if (strcmp("tail", func) == 0) { return builtin_tail(e, a); }
-  if (strcmp("join", func) == 0) { return builtin_join(e, a); }
-  if (strcmp("eval", func) == 0) { return builtin_eval(e, a); }
-  if (strcmp("cons", func) == 0) { return builtin_cons(e, a); }
-  if (strcmp("len",  func) == 0) { return builtin_len(e, a); }
-  if (strcmp("init", func) == 0) { return builtin_init(e, a); }
-  if (strstr("+s/*", func) == 0) { return builtin_op(e, a, func); }
-  lval_del(a);
-  return lval_err("Unknown Function!");
+// TODO: env requires an argument at the moment; should not.
+lval *builtin_env(lenv *e, lval *a) {
+  lenv_print(e);
+  return a;
 }
 
-
+lval *builtin_exit() {
+  exit(0);
+}
 
 
 /*
