@@ -41,6 +41,7 @@
   if (args->count == 0) { lval_del(args); return lval_err("Arguments missing."); }
 
 // Forward declare functions
+
 struct lval;
 struct lenv;
 typedef struct lval lval;
@@ -91,8 +92,12 @@ lval* lval_pop(lval* v, int i);
 lval* lval_take(lval* v, int i);
 lval* lval_eval_sexpr(lenv *e, lval *v);
 lval *lval_eval(lenv *e, lval *v);
-lval *builtin_def(lenv *e, lval *a);
+lval *lval_call(lenv *e, lval *f, lval *a);
 
+lval *builtin_lamba(lenv *e, lval *a);
+lval *builtin_put(lenv *e, lval *a);
+lval *builtin_var(lenv *e, lval *a, char* func);
+lval *builtin_def(lenv *e, lval *a);
 lval* builtin_len(lenv *e, lval *a);
 lval* builtin_head(lenv *e, lval *a);
 lval* builtin_tail(lenv *e, lval *a);
