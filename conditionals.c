@@ -1,5 +1,6 @@
 #include "mpc.h"
 #include "conditionals.h"
+#include <stdbool.h>
 
 const char *VERSION_STRING = "0.13.0";
 
@@ -17,6 +18,7 @@ struct lval {
     int type;
 
     // Basic
+    bool truth_value;
     long num;
     char* err;
     char* sym;
@@ -175,6 +177,15 @@ void lenv_add_builtins(lenv *e) {
 /* * * * * * * * * * * * * * * *
 *  LVAL CONSTRUCTOR FUNCTIONS *
 * * * * * * * * * * * * * * * */
+
+// Construct a pointer to a new Boolean lval
+lval *lval_bool(int x) {
+    lval *v = malloc(sizeof(lval));
+    v->type = LVAL_BOOL;
+    v->num = x;
+    v->truth_value = !!x;
+    return v;
+}
 
 // Construct a pointer to a new Function lval
 lval *lval_fun(lbuiltin func) {

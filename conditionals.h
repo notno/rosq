@@ -47,13 +47,14 @@ struct lenv;
 typedef struct lval lval;
 typedef struct lenv lenv;
 
-enum { LVAL_NUM, LVAL_ERR, LVAL_SYM,
+enum { LVAL_NUM, LVAL_ERR, LVAL_SYM, LVAL_BOOL,
        LVAL_FUN, LVAL_SEXPR, LVAL_QEXPR };
 
 char *ltype_name(int t) {
   switch(t) {
     case LVAL_FUN: return "Function";
     case LVAL_NUM: return "Number";
+    case LVAL_BOOL: return "Boolean";
     case LVAL_ERR: return "Error";
     case LVAL_SYM: return "Symbol";
     case LVAL_SEXPR: return "S-Expression";
