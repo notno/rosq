@@ -17,3 +17,9 @@ fun {second list} {head (tail list)}
 def {head-uncurried} (\ {& i} {head i})
 // OR
 def {head-uncurried} (eval (uncurry head))
+
+// Length of a list, using recursion
+fun {len l} { if (== l {}) {0} {+ 1 (len (tail l))}}
+
+// Reverse a list, using recursion
+fun {reverse l} {if (== l {}) {{}} {join (reverse (tail l)) (head l)}}

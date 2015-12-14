@@ -87,7 +87,7 @@ lval *lval_add(lval *v, lval *x);
 void lval_expr_print(lval *v, char open, char close);
 void lval_print(lval *v);
 void lval_println(lval *v);
-int lval_compare(lval *a, lval *b);
+int lval_eq(lval *x, lval *y);
 lval *lval_join(lval *x , lval *y);
 lval *lval_pop(lval *v, int i);
 lval *lval_take(lval *v, int i);
@@ -95,14 +95,19 @@ lval *lval_eval_sexpr(lenv *e, lval *v);
 lval *lval_eval(lenv *e, lval *v);
 lval *lval_call(lenv *e, lval *f, lval *a);
 
-lval *builtin_compare (lenv *e, lval *a, char *op);
+lval *builtin_if(lenv *e, lval *a);
+lval *builtin_and(lenv *e, lval *a);
+lval *builtin_or(lenv *e, lval *a);
+
+lval *builtin_cmp(lenv *e, lval *a, char *op);
+lval *builtin_eq(lenv *e, lval *a);
+lval *builtin_ne(lenv *e, lval *a);
+
+lval *builtin_ord (lenv *e, lval *a, char *op);
 lval *builtin_lt(lenv *e, lval *a);
 lval *builtin_lte(lenv *e, lval *a);
 lval *builtin_gt(lenv *e, lval *a);
 lval *builtin_gte(lenv *e, lval *a);
-lval *builtin_equals(lenv *e, lval *a);
-lval *builtin_not_equals(lenv *e, lval *a);
-lval *builtin_if(lenv *e, lval *a);
 
 lval *builtin_lamba(lenv *e, lval *a);
 lval *builtin_put(lenv *e, lval *a);

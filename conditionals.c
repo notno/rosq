@@ -147,9 +147,11 @@ void lenv_add_builtins(lenv *e) {
     lenv_add_builtin(e, "<=", builtin_lte);
     lenv_add_builtin(e, ">", builtin_gt);
     lenv_add_builtin(e, ">=", builtin_gte);
-    lenv_add_builtin(e, "==", builtin_equals);
-    lenv_add_builtin(e, "!=", builtin_not_equals);
+    lenv_add_builtin(e, "==", builtin_eq);
+    lenv_add_builtin(e, "!=", builtin_ne);
     lenv_add_builtin(e, "if", builtin_if);
+    lenv_add_builtin(e, "||", builtin_or);
+    lenv_add_builtin(e, "&&", builtin_and);
 
     // Mathematical Functions
     lenv_add_builtin(e, "+", builtin_add);
@@ -431,17 +433,42 @@ lval* lval_pop(lval* v, int i) {
     return x;
 }
 
-int lval_compare(lval *a, lval *b) {
-    // Assuming a and b are LVAL_NUM
+int lval_eq(lval *x, lval *y) {
+    // Different Types are always unequal
+    if (x->type != y->type) { return 0; }
 
-    if (a->num == b->num) {
-        return 0;
-    } else if (a->num < b->num) {
-        return -1;
-    } else {
-        return 1;
+    // Compare based upon type
+    switch (x->type) {
+        // Compare number value
+        case LVAL_NUM: return (x->num == y->num);
+
+        // Compare string values
+        case LVAL_ERR: return (strcmp(x->err, y->err) == 0);
+        case LVAL_SYM: return (strcmp(x->sym, y->sym) == 0);
+
+        // If builtin, compare, otherwasie compare formals and body
+        case LVAL_FUN:
+            if (x->builtin || y->builtin) {
+                return x->builtin == y->builtin;
+            } else {
+                return lval_eq(x->formals, y->formals)
+                    && lval_eq(x->body, y->body);
+            }
+
+        // If list, compare every individual element
+        case LVAL_QEXPR:
+        case LVAL_SEXPR:
+            if (x->count != y->count) { return 0; }
+            for (int i = 0; i < x->count; i++) {
+                // If any element not equal then whole list not equal
+                if ( !lval_eq(x->cell[i], y->cell[i]) ) { return 0; }
+            }
+            // Otherwise, lists must be equal
+            return 1;
+        break;
     }
-};
+    return 0;
+}
 
 lval *lval_take(lval* v, int i) {
     lval* x = lval_pop(v, i);
@@ -785,80 +812,99 @@ lval* builtin_op(lenv *e, lval *a, char* op) {
     lval_del(a); return x;
 }
 
-lval* builtin_compare (lenv *e, lval *a, char* op) {
+lval* builtin_ord (lenv *e, lval *a, char* op) {
     LASSERT_NUM(a, "<", 2);
     LASSERT_TYPE(a, "<", 0, LVAL_NUM);
     LASSERT_TYPE(a, "<", 1, LVAL_NUM);
 
-    int comp = lval_compare(a->cell[0], a->cell[1]);
+    int r;
     if (strcmp(op, "==") == 0) {
-        switch (comp) {
-            case -1: lval_del(a); return lval_num(0);
-            case 0:  lval_del(a); return lval_num(1);
-            case 1:  lval_del(a); return lval_num(0);
-        }
-    };
+        r = (a->cell[0]->num == a->cell[1]->num);
+    }
     if (strcmp(op, "!=") == 0) {
-        switch (comp) {
-            case -1: lval_del(a); return lval_num(1);
-            case 0:  lval_del(a); return lval_num(0);
-            case 1:  lval_del(a); return lval_num(1);
-        }
-    };
+        r = (a->cell[0]->num != a->cell[1]->num);
+    }
     if (strcmp(op, "<") == 0) {
-        switch (comp) {
-            case -1: lval_del(a); return lval_num(1);
-            case 0:  lval_del(a); return lval_num(0);
-            case 1:  lval_del(a); return lval_num(0);
-        }
-    };
+        r = (a->cell[0]->num < a->cell[1]->num);
+    }
     if (strcmp(op, "<=") == 0) {
-        switch (comp) {
-            case -1: lval_del(a); return lval_num(1);
-            case 0:  lval_del(a); return lval_num(1);
-            case 1:  lval_del(a); return lval_num(0);
-        }
-    };
+        r = (a->cell[0]->num <= a->cell[1]->num);
+    }
     if (strcmp(op, ">") == 0) {
-        switch (comp) {
-            case -1: lval_del(a); return lval_num(0);
-            case 0:  lval_del(a); return lval_num(0);
-            case 1:  lval_del(a); return lval_num(1);
-        }
-    };
+        r = (a->cell[0]->num > a->cell[1]->num);
+    }
     if (strcmp(op, ">=") == 0) {
-        switch (comp) {
-            case -1: lval_del(a); return lval_num(0);
-            case 0:  lval_del(a); return lval_num(1);
-            case 1:  lval_del(a); return lval_num(1);
-        }
-    };
+        r = (a->cell[0]->num >= a->cell[1]->num);
+    }
 
+    lval_del(a);
+    return lval_num(r);
+}
+
+lval *builtin_cmp(lenv *e, lval *a, char *op) {
+    LASSERT_NUM(a, op, 2);
+    int r;
+    if (strcmp(op, "==") == 0) {
+        r = lval_eq(a->cell[0], a->cell[1]);
+    }
+    if (strcmp(op, "!=") == 0) {
+        r = !lval_eq(a->cell[0], a->cell[1]);
+    }
+    lval_del(a);
+    return lval_num(r);
+}
+
+lval *builtin_if(lenv *e, lval *a){
+    LASSERT_NUM(a, "if", 3);
+    LASSERT_TYPE(a, "if", 0, LVAL_NUM);
+    LASSERT_TYPE(a, "if", 1, LVAL_QEXPR);
+    LASSERT_TYPE(a, "if", 2, LVAL_QEXPR);
+
+    // Mark both expressions as evaluable
+    lval *x;
+    a->cell[1]->type = LVAL_SEXPR;
+    a->cell[2]->type = LVAL_SEXPR;
+
+    if (a->cell[0]->num) {
+        // If condition is true evaluate the first expression
+        x = lval_eval(e, lval_pop(a, 1));
+    } else {
+        // Otherwise evaluate second expression
+        x = lval_eval(e, lval_pop(a, 2));
+    }
+
+    // Delete arg list and return
+    lval_del(a);
+    return x;
+}
+
+lval *builtin_or(lenv *e, lval *a) {
+    LASSERT_NUM(a, "||", 2)
+    LASSERT_TYPE(a, "||", 0, LVAL_NUM)
+    LASSERT_TYPE(a, "||", 1, LVAL_NUM)
+
+    if (a->cell[0]->num == 1 || a->cell[1]->num == 1) { return lval_num(1);}
     lval_del(a);
     return lval_num(0);
 }
 
-lval *builtin_if(lenv *e, lval *a){
-    LASSERT_NUM(a, "if", 2);
-    LASSERT_TYPE(a, "if", 0, LVAL_NUM);
-    LASSERT_TYPE(a, "if", 1, LVAL_QEXPR);
+lval *builtin_and(lenv *e, lval *a) {
+    LASSERT_NUM(a, "&&", 2)
+    LASSERT_TYPE(a, "&&", 0, LVAL_NUM)
+    LASSERT_TYPE(a, "&&", 1, LVAL_NUM)
 
-    // We'll evaluate the Q-Expression if the number is greater than 0
-    if ( a->cell[0]->num > 0 ) {
-        return a->cell[1];
-    } else {
-        // Don't then
-        return lval_sexpr();
-        lval_err("Not true");
-    }
+    if (a->cell[0]->num == 1 && a->cell[1]->num == 1) { return lval_num(1);}
+    lval_del(a);
+    return lval_num(0);
 }
 
-lval *builtin_lt(lenv *e, lval *a) { return builtin_compare(e, a, "<"); }
-lval *builtin_lte(lenv *e, lval *a) { return builtin_compare(e, a, "<="); }
-lval *builtin_gt(lenv *e, lval *a) { return builtin_compare(e, a, ">"); }
-lval *builtin_gte(lenv *e, lval *a) { return builtin_compare(e, a, ">="); }
-lval *builtin_equals(lenv *e, lval *a) { return builtin_compare(e, a, "=="); }
-lval *builtin_not_equals(lenv *e, lval *a) { return builtin_compare(e, a, "!="); }
+lval *builtin_lt(lenv *e, lval *a) { return builtin_ord(e, a, "<"); }
+lval *builtin_lte(lenv *e, lval *a) { return builtin_ord(e, a, "<="); }
+lval *builtin_gt(lenv *e, lval *a) { return builtin_ord(e, a, ">"); }
+lval *builtin_gte(lenv *e, lval *a) { return builtin_ord(e, a, ">="); }
+
+lval *builtin_eq(lenv *e, lval *a) { return builtin_cmp(e, a, "=="); }
+lval *builtin_ne(lenv *e, lval *a) { return builtin_cmp(e, a, "!="); }
 
 lval *builtin_add(lenv *e, lval *a) { return builtin_op(e, a, "+"); }
 lval *builtin_sub(lenv *e, lval *a) { return builtin_op(e, a, "-"); }
@@ -891,7 +937,7 @@ int main(int argc, char** argv) {
     mpca_lang(MPCA_LANG_DEFAULT,
         "                                                   \
         number   : /-?[0-9]+/ ;                             \
-        symbol   : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&]+/;        \
+        symbol   : /[a-zA-Z0-9_+\\-*\\/\\\\=<>|!&]+/;        \
         sexpr    : '(' <expr>* ')' ;                        \
         qexpr    : '{' <expr>* '}' ;                        \
         expr     : <number> | <symbol> | <sexpr> | <qexpr> ;\
