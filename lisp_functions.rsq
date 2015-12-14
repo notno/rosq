@@ -1,0 +1,19 @@
+def {reverseFun} (\ {args body} {def (head args) (\ (list (tail (tail args)) (head (tail args))) body)})
+
+
+// A simpler way to define functions
+def {fun} (\ {args body} {def (head args) (\ (tail args) body)})
+
+// Curry
+fun {curry f xs} {eval (join (list f) xs)}
+
+// Uncurry
+fun {uncurry f & xs} {f xs}
+
+// Second in a list
+fun {second list} {head (tail list)}
+
+// Uncurried head function
+def {head-uncurried} (\ {& i} {head i})
+// OR
+def {head-uncurried} (eval (uncurry head))
