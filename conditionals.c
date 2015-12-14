@@ -144,10 +144,11 @@ void lenv_add_builtins(lenv *e) {
 
     // Control Flow Functions
     lenv_add_builtin(e, "<", builtin_lt);
-    // lenv_add_builtin(e, "<=", builtin_lte);
+    lenv_add_builtin(e, "<=", builtin_lte);
     lenv_add_builtin(e, ">", builtin_gt);
-    // lenv_add_builtin(e, ">=", builtin_gte);
+    lenv_add_builtin(e, ">=", builtin_gte);
     lenv_add_builtin(e, "==", builtin_equals);
+    lenv_add_builtin(e, "!=", builtin_not_equals);
     // lenv_add_builtin(e, "if", builtin_if);
 
     // Mathematical Functions
@@ -790,44 +791,46 @@ lval* builtin_comparison (lenv *e, lval *a, char* op) {
     LASSERT_TYPE(a, "<", 1, LVAL_NUM);
 
     int comp = lval_compare(a->cell[0], a->cell[1]);
-    if (strcmp(op, "<") == 0) {
-        switch (comp) {
-            case -1:
-                lval_del(a);
-                return lval_num(1);
-            case 0:
-                lval_del(a);
-                return lval_num(0);
-            case 1:
-                lval_del(a);
-                return lval_num(0);
-        }
-    };
-
-    if (strcmp(op, ">") == 0) {
-        switch (comp) {
-            case -1:
-                lval_del(a);
-                return lval_num(0);
-            case 0:
-                lval_del(a);
-                return lval_num(0);
-            case 1:
-                lval_del(a);
-                return lval_num(1);
-        }
-    };
     if (strcmp(op, "==") == 0) {
         switch (comp) {
-            case -1:
-                lval_del(a);
-                return lval_num(0);
-            case 0:
-                lval_del(a);
-                return lval_num(1);
-            case 1:
-                lval_del(a);
-                return lval_num(0);
+            case -1: lval_del(a); return lval_num(0);
+            case 0:  lval_del(a); return lval_num(1);
+            case 1:  lval_del(a); return lval_num(0);
+        }
+    };
+    if (strcmp(op, "!=") == 0) {
+        switch (comp) {
+            case -1: lval_del(a); return lval_num(1);
+            case 0:  lval_del(a); return lval_num(0);
+            case 1:  lval_del(a); return lval_num(1);
+        }
+    };
+    if (strcmp(op, "<") == 0) {
+        switch (comp) {
+            case -1: lval_del(a); return lval_num(1);
+            case 0:  lval_del(a); return lval_num(0);
+            case 1:  lval_del(a); return lval_num(0);
+        }
+    };
+    if (strcmp(op, "<=") == 0) {
+        switch (comp) {
+            case -1: lval_del(a); return lval_num(1);
+            case 0:  lval_del(a); return lval_num(1);
+            case 1:  lval_del(a); return lval_num(0);
+        }
+    };
+    if (strcmp(op, ">") == 0) {
+        switch (comp) {
+            case -1: lval_del(a); return lval_num(0);
+            case 0:  lval_del(a); return lval_num(0);
+            case 1:  lval_del(a); return lval_num(1);
+        }
+    };
+    if (strcmp(op, ">=") == 0) {
+        switch (comp) {
+            case -1: lval_del(a); return lval_num(0);
+            case 0:  lval_del(a); return lval_num(1);
+            case 1:  lval_del(a); return lval_num(1);
         }
     };
 
@@ -838,13 +841,20 @@ lval* builtin_comparison (lenv *e, lval *a, char* op) {
 lval *builtin_lt(lenv *e, lval *a) {
     return builtin_comparison(e, a, "<");
 }
-// lval *builtin_lte(lenv *e, lval *a);
+lval *builtin_lte(lenv *e, lval *a) {
+    return builtin_comparison(e, a, "<=");
+}
 lval *builtin_gt(lenv *e, lval *a) {
     return builtin_comparison(e, a, ">");
 }
-// lval *builtin_gte(lenv *e, lval *a);
+lval *builtin_gte(lenv *e, lval *a) {
+    return builtin_comparison(e, a, ">=");
+}
 lval *builtin_equals(lenv *e, lval *a) {
     return builtin_comparison(e, a, "==");
+}
+lval *builtin_not_equals(lenv *e, lval *a) {
+    return builtin_comparison(e, a, "!=");
 }
 // lval *builtin_if(lenv *e, lval *a);
 
