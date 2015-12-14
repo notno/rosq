@@ -152,6 +152,7 @@ void lenv_add_builtins(lenv *e) {
     lenv_add_builtin(e, "if", builtin_if);
     lenv_add_builtin(e, "||", builtin_or);
     lenv_add_builtin(e, "&&", builtin_and);
+    lenv_add_builtin(e, "!", builtin_not);
 
     // Mathematical Functions
     lenv_add_builtin(e, "+", builtin_add);
@@ -896,6 +897,19 @@ lval *builtin_and(lenv *e, lval *a) {
     if (a->cell[0]->num == 1 && a->cell[1]->num == 1) { return lval_num(1);}
     lval_del(a);
     return lval_num(0);
+}
+
+lval *builtin_not(lenv *e, lval *a) {
+    LASSERT_NUM(a, "!", 1)
+    LASSERT_TYPE(a, "!", 0, LVAL_NUM)
+
+    if (a->cell[0]->num == 0) {
+        return lval_num(1);
+    } else {
+        return lval_num(0);
+    }
+
+    lval_del(a);
 }
 
 lval *builtin_lt(lenv *e, lval *a) { return builtin_ord(e, a, "<"); }

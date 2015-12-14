@@ -98,6 +98,7 @@ lval *lval_call(lenv *e, lval *f, lval *a);
 lval *builtin_if(lenv *e, lval *a);
 lval *builtin_and(lenv *e, lval *a);
 lval *builtin_or(lenv *e, lval *a);
+lval *builtin_not(lenv *e, lval *a);
 
 lval *builtin_cmp(lenv *e, lval *a, char *op);
 lval *builtin_eq(lenv *e, lval *a);
