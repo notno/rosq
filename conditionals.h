@@ -95,7 +95,7 @@ lval *lval_eval_sexpr(lenv *e, lval *v);
 lval *lval_eval(lenv *e, lval *v);
 lval *lval_call(lenv *e, lval *f, lval *a);
 
-lval *builtin_comparison (lenv *e, lval *a, char *op);
+lval *builtin_compare (lenv *e, lval *a, char *op);
 lval *builtin_lt(lenv *e, lval *a);
 lval *builtin_lte(lenv *e, lval *a);
 lval *builtin_gt(lenv *e, lval *a);

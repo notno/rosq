@@ -149,7 +149,7 @@ void lenv_add_builtins(lenv *e) {
     lenv_add_builtin(e, ">=", builtin_gte);
     lenv_add_builtin(e, "==", builtin_equals);
     lenv_add_builtin(e, "!=", builtin_not_equals);
-    // lenv_add_builtin(e, "if", builtin_if);
+    lenv_add_builtin(e, "if", builtin_if);
 
     // Mathematical Functions
     lenv_add_builtin(e, "+", builtin_add);
@@ -785,7 +785,7 @@ lval* builtin_op(lenv *e, lval *a, char* op) {
     lval_del(a); return x;
 }
 
-lval* builtin_comparison (lenv *e, lval *a, char* op) {
+lval* builtin_compare (lenv *e, lval *a, char* op) {
     LASSERT_NUM(a, "<", 2);
     LASSERT_TYPE(a, "<", 0, LVAL_NUM);
     LASSERT_TYPE(a, "<", 1, LVAL_NUM);
@@ -838,40 +838,34 @@ lval* builtin_comparison (lenv *e, lval *a, char* op) {
     return lval_num(0);
 }
 
-lval *builtin_lt(lenv *e, lval *a) {
-    return builtin_comparison(e, a, "<");
-}
-lval *builtin_lte(lenv *e, lval *a) {
-    return builtin_comparison(e, a, "<=");
-}
-lval *builtin_gt(lenv *e, lval *a) {
-    return builtin_comparison(e, a, ">");
-}
-lval *builtin_gte(lenv *e, lval *a) {
-    return builtin_comparison(e, a, ">=");
-}
-lval *builtin_equals(lenv *e, lval *a) {
-    return builtin_comparison(e, a, "==");
-}
-lval *builtin_not_equals(lenv *e, lval *a) {
-    return builtin_comparison(e, a, "!=");
-}
-// lval *builtin_if(lenv *e, lval *a);
+lval *builtin_if(lenv *e, lval *a){
+    LASSERT_NUM(a, "if", 2);
+    LASSERT_TYPE(a, "if", 0, LVAL_NUM);
+    LASSERT_TYPE(a, "if", 1, LVAL_QEXPR);
 
-lval *builtin_add(lenv *e, lval *a) {
-    return builtin_op(e, a, "+");
-}
-lval *builtin_sub(lenv *e, lval *a) {
-    return builtin_op(e, a, "-");
-}
-lval *builtin_mul(lenv *e, lval *a) {
-    return builtin_op(e, a, "*");
-}
-lval *builtin_div(lenv *e, lval *a) {
-    return builtin_op(e, a, "/");
+    // We'll evaluate the Q-Expression if the number is greater than 0
+    if ( a->cell[0]->num > 0 ) {
+        return a->cell[1];
+    } else {
+        // Don't then
+        return lval_sexpr();
+        lval_err("Not true");
+    }
 }
 
-// TODO: env requires an argument at the moment; should not.
+lval *builtin_lt(lenv *e, lval *a) { return builtin_compare(e, a, "<"); }
+lval *builtin_lte(lenv *e, lval *a) { return builtin_compare(e, a, "<="); }
+lval *builtin_gt(lenv *e, lval *a) { return builtin_compare(e, a, ">"); }
+lval *builtin_gte(lenv *e, lval *a) { return builtin_compare(e, a, ">="); }
+lval *builtin_equals(lenv *e, lval *a) { return builtin_compare(e, a, "=="); }
+lval *builtin_not_equals(lenv *e, lval *a) { return builtin_compare(e, a, "!="); }
+
+lval *builtin_add(lenv *e, lval *a) { return builtin_op(e, a, "+"); }
+lval *builtin_sub(lenv *e, lval *a) { return builtin_op(e, a, "-"); }
+lval *builtin_mul(lenv *e, lval *a) { return builtin_op(e, a, "*"); }
+lval *builtin_div(lenv *e, lval *a) { return builtin_op(e, a, "/"); }
+
+// TODO: env and exit require an argument at the moment; should not.
 lval *builtin_env(lenv *e, lval *a) {
     lenv_print(e);
     return a;
