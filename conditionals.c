@@ -179,11 +179,10 @@ void lenv_add_builtins(lenv *e) {
 * * * * * * * * * * * * * * * */
 
 // Construct a pointer to a new Boolean lval
-lval *lval_bool(int x) {
+lval *lval_bool(bool truth) {
     lval *v = malloc(sizeof(lval));
     v->type = LVAL_BOOL;
-    v->num = x;
-    v->truth_value = !!x;
+    v->truth_value = truth;
     return v;
 }
 
@@ -289,7 +288,7 @@ lval *lval_copy(lval *v) {
         }
         break;
         case LVAL_NUM: x->num = v->num; break;
-
+        case LVAL_BOOL: x->truth_value = v->truth_value; break;
         // Copy Strings using malloc and strcpy
         case LVAL_ERR:
         x->err = malloc(strlen(v->err) + 1);
@@ -315,7 +314,6 @@ lval *lval_copy(lval *v) {
 
 void lval_del(lval* v) {
     switch (v->type) {
-        // Do nothing special for number type
         case LVAL_FUN:
         if (!v->builtin) {
             lenv_del(v->env);
@@ -323,7 +321,9 @@ void lval_del(lval* v) {
             lval_del(v->body);
         }
         break;
+        // Do nothing special for number type
         case LVAL_NUM: break;
+        case LVAL_BOOL: break;
 
         // For Err or Sym froo the string data
         case LVAL_ERR: free(v->err); break;
@@ -408,6 +408,7 @@ void lval_print(lval* v) {
         }
         break;
         case LVAL_NUM: printf("%li", v->num); break;
+        case LVAL_BOOL: printf("Boolean: %d", v->truth_value); break;
         case LVAL_ERR: printf("Error: %s", v->err); break;
         case LVAL_SYM: printf("%s", v->sym); break;
         case LVAL_SEXPR: lval_expr_print(v, '(', ')'); break;
@@ -453,6 +454,7 @@ int lval_eq(lval *x, lval *y) {
     switch (x->type) {
         // Compare number value
         case LVAL_NUM: return (x->num == y->num);
+        case LVAL_BOOL: return (x->truth_value == y->truth_value);
 
         // Compare string values
         case LVAL_ERR: return (strcmp(x->err, y->err) == 0);
@@ -829,7 +831,7 @@ lval* builtin_ord (lenv *e, lval *a, char* op) {
     LASSERT_TYPE(a, "<", 0, LVAL_NUM);
     LASSERT_TYPE(a, "<", 1, LVAL_NUM);
 
-    int r;
+    bool r;
     if (strcmp(op, "==") == 0) {
         r = (a->cell[0]->num == a->cell[1]->num);
     }
@@ -850,12 +852,12 @@ lval* builtin_ord (lenv *e, lval *a, char* op) {
     }
 
     lval_del(a);
-    return lval_num(r);
+    return lval_bool(r);
 }
 
 lval *builtin_cmp(lenv *e, lval *a, char *op) {
     LASSERT_NUM(a, op, 2);
-    int r;
+    bool r;
     if (strcmp(op, "==") == 0) {
         r = lval_eq(a->cell[0], a->cell[1]);
     }
@@ -863,12 +865,12 @@ lval *builtin_cmp(lenv *e, lval *a, char *op) {
         r = !lval_eq(a->cell[0], a->cell[1]);
     }
     lval_del(a);
-    return lval_num(r);
+    return lval_bool(r);
 }
 
 lval *builtin_if(lenv *e, lval *a){
     LASSERT_NUM(a, "if", 3);
-    LASSERT_TYPE(a, "if", 0, LVAL_NUM);
+    LASSERT_TYPE(a, "if", 0, LVAL_BOOL);
     LASSERT_TYPE(a, "if", 1, LVAL_QEXPR);
     LASSERT_TYPE(a, "if", 2, LVAL_QEXPR);
 
@@ -877,7 +879,7 @@ lval *builtin_if(lenv *e, lval *a){
     a->cell[1]->type = LVAL_SEXPR;
     a->cell[2]->type = LVAL_SEXPR;
 
-    if (a->cell[0]->num) {
+    if (a->cell[0]->truth_value) {
         // If condition is true evaluate the first expression
         x = lval_eval(e, lval_pop(a, 1));
     } else {
@@ -895,9 +897,9 @@ lval *builtin_or(lenv *e, lval *a) {
     LASSERT_TYPE(a, "||", 0, LVAL_NUM)
     LASSERT_TYPE(a, "||", 1, LVAL_NUM)
 
-    if (a->cell[0]->num == 1 || a->cell[1]->num == 1) { return lval_num(1);}
+    if (a->cell[0]->num == 1 || a->cell[1]->num == 1) { return lval_bool(true);}
     lval_del(a);
-    return lval_num(0);
+    return lval_bool(false);
 }
 
 lval *builtin_and(lenv *e, lval *a) {
@@ -905,9 +907,9 @@ lval *builtin_and(lenv *e, lval *a) {
     LASSERT_TYPE(a, "&&", 0, LVAL_NUM)
     LASSERT_TYPE(a, "&&", 1, LVAL_NUM)
 
-    if (a->cell[0]->num == 1 && a->cell[1]->num == 1) { return lval_num(1);}
+    if (a->cell[0]->num == 1 && a->cell[1]->num == 1) { return lval_bool(true);}
     lval_del(a);
-    return lval_num(0);
+    return lval_bool(false);
 }
 
 lval *builtin_not(lenv *e, lval *a) {
@@ -915,9 +917,9 @@ lval *builtin_not(lenv *e, lval *a) {
     LASSERT_TYPE(a, "!", 0, LVAL_NUM)
 
     if (a->cell[0]->num == 0) {
-        return lval_num(1);
+        return lval_bool(true);
     } else {
-        return lval_num(0);
+        return lval_bool(false);
     }
 
     lval_del(a);
