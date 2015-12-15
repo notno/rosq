@@ -472,6 +472,7 @@ lval *lval_read_str(mpc_ast_t *t) {
 }
 
 lval *lval_read(mpc_ast_t *t) {
+
     // If Symbol or Number return conversion to that type
     if (strstr(t->tag, "number")) { return lval_read_num(t); }
     if (strstr(t->tag, "symbol")) { return lval_sym(t->contents); }
@@ -485,6 +486,8 @@ lval *lval_read(mpc_ast_t *t) {
 
     // Fill this list with any valid expression contained within
     for (int i = 0; i < t->children_num; i++) {
+        // If a Comment, (, ), {, }, or regex ignore
+        if (strstr(t->children[i]->tag, "comment")) { continue; }
         if (strcmp(t->children[i]->contents, "(") == 0) { continue; }
         if (strcmp(t->children[i]->contents, ")") == 0) { continue; }
         if (strcmp(t->children[i]->contents, "}") == 0) { continue; }
@@ -1000,6 +1003,7 @@ lval *builtin_exit() {
 
 int main(int argc, char **argv) {
     mpc_parser_t *String   = mpc_new("string");
+    mpc_parser_t *Comment  = mpc_new("comment");
     mpc_parser_t *Number   = mpc_new("number");
     mpc_parser_t *Symbol   = mpc_new("symbol");
     mpc_parser_t *Sexpr    = mpc_new("sexpr");
@@ -1008,16 +1012,19 @@ int main(int argc, char **argv) {
     mpc_parser_t *Rosq     = mpc_new("rosq");
 
     mpca_lang(MPCA_LANG_DEFAULT,
-        "                                                              \
-        string   : /\"(\\\\.|[^\"])*\"/;                               \
-        number   : /-?[0-9]+/ ;                                        \
-        symbol   : /[a-zA-Z0-9_+\\-*\\/\\\\=<>|!&]+/;                  \
-        sexpr    : '(' <expr>* ')' ;                                   \
-        qexpr    : '{' <expr>* '}' ;                                   \
-        expr     : <string> | <number> | <symbol> | <sexpr> | <qexpr> ;\
-        rosq     : /^/ <expr>* /$/ ;                                   \
+        "                                              \
+        string  : /\"(\\\\.|[^\"])*\"/                 \
+        comment : /;[^\\r\\n]*/;                       \
+        number  : /-?[0-9]+/ ;                         \
+        symbol  : /[a-zA-Z0-9_+\\-*\\/\\\\=<>|!&]+/;   \
+        sexpr   : '(' <expr>* ')' ;                    \
+        qexpr   : '{' <expr>* '}' ;                    \
+        expr    : <string> | <comment> | <number>      \
+                | <symbol> | <sexpr> | <qexpr>         \
+        rosq     : /^/ <expr>* /$/ ;                   \
         ",
-        String, Number, Symbol, Sexpr, Qexpr, Expr, Rosq);
+        String, Comment, Number, Symbol,
+        Sexpr,  Qexpr,   Expr,   Rosq);
 
     printf("Rosq Version %s\n", VERSION_STRING);
     puts("Press Ctrl+C to Exit, or type 'exit 1'\n");
@@ -1044,7 +1051,9 @@ int main(int argc, char **argv) {
     }
 
     lenv_del(e);
-    mpc_cleanup(7, String, Number, Symbol, Sexpr, Qexpr, Expr, Rosq);
+    mpc_cleanup(8,
+        String, Comment, Number, Symbol,
+        Sexpr,  Qexpr,   Expr,   Rosq);
 
     return 0;
 }
