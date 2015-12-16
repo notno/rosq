@@ -104,6 +104,8 @@ lval *lval_eval(lenv *e, lval *v);
 lval *lval_call(lenv *e, lval *f, lval *a);
 
 lval *builtin_load(lenv *e, lval *a);
+lval *builtin_print(lenv *e, lval *a);
+lval *builtin_error(lenv *e, lval *a);
 
 lval *builtin_if(lenv *e, lval *a);
 lval *builtin_and(lenv *e, lval *a);

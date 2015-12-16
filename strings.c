@@ -136,6 +136,11 @@ void lenv_add_builtin(lenv *e, char *name, lbuiltin func) {
 }
 
 void lenv_add_builtins(lenv *e) {
+    // String functions
+    lenv_add_builtin(e, "load", builtin_load);
+    lenv_add_builtin(e, "print", builtin_print);
+    lenv_add_builtin(e, "error", builtin_error);
+
     // List Functions
     lenv_add_builtin(e, "list", builtin_list);
     lenv_add_builtin(e, "head", builtin_head);
@@ -172,9 +177,6 @@ void lenv_add_builtins(lenv *e) {
     // Environment functions
     lenv_add_builtin(e, "env", builtin_env);
     lenv_add_builtin(e, "exit", builtin_exit);
-
-    // File functions
-    lenv_add_builtin(e, "load", builtin_load);
 }
 
 
@@ -282,47 +284,6 @@ lval *lval_qexpr(void) {
 /* * * * * * * * * * * * *
 * LVAL HELPER FUNCTIONS *
 * * * * * * * * * * * * */
-
-lval *builtin_load(lenv *e, lval *a) {
-    LASSERT_NUM(a, "load", 1);
-    LASSERT_TYPE(a, "load", 0, LVAL_STR);
-
-    // Parse file given by string name
-    mpc_result_t r;
-    if (mpc_parse_contents(a->cell[0]->str, Rosq, &r)){
-        // Read contents
-        lval *expr = lval_read(r.output);
-        mpc_ast_delete(r.output);
-
-        // Evaluate each Expression
-        while (expr->count) {
-            lval *x = lval_eval(e, lval_pop(expr, 0));
-            //If evaluation leads to error print it
-            if (x->type == LVAL_ERR) { lval_println(x); }
-            lval_del(x);
-        }
-
-        // Delete expressions and arguments
-        lval_del(expr);
-        lval_del(a);
-
-        // Return empty list
-        return lval_sexpr();
-
-    } else {
-        // Get parse error as string
-        char *err_msg = mpc_err_string(r.error);
-        mpc_err_delete(r.error);
-
-        // Create a new error message using it
-        lval *err = lval_err("Could not load Library %s", err_msg);
-        free(err_msg);
-        lval_del(a);
-
-        // Cleanup and return error
-        return err;
-    }
-}
 
 lval *lval_copy(lval *v) {
 
@@ -717,6 +678,71 @@ lval *lval_call(lenv *e, lval *f, lval *a) {
 /* * * * * * * * * * * * * *
 * Rosq Built In Functions *
 * * * * * * * * * * * * * */
+lval *builtin_load(lenv *e, lval *a) {
+    LASSERT_NUM(a, "load", 1);
+    LASSERT_TYPE(a, "load", 0, LVAL_STR);
+
+    // Parse file given by string name
+    mpc_result_t r;
+    if (mpc_parse_contents(a->cell[0]->str, Rosq, &r)){
+        // Read contents
+        lval *expr = lval_read(r.output);
+        mpc_ast_delete(r.output);
+
+        // Evaluate each Expression
+        while (expr->count) {
+            lval *x = lval_eval(e, lval_pop(expr, 0));
+            //If evaluation leads to error print it
+            if (x->type == LVAL_ERR) { lval_println(x); }
+            lval_del(x);
+        }
+
+        // Delete expressions and arguments
+        lval_del(expr);
+        lval_del(a);
+
+        // Return empty list
+        return lval_sexpr();
+
+    } else {
+        // Get parse error as string
+        char *err_msg = mpc_err_string(r.error);
+        mpc_err_delete(r.error);
+
+        // Create a new error message using it
+        lval *err = lval_err("Could not load Library %s", err_msg);
+        free(err_msg);
+        lval_del(a);
+
+        // Cleanup and return error
+        return err;
+    }
+}
+
+lval *builtin_print(lenv *e, lval *a) {
+    // Print each argument followed by a space
+    puts("foo");
+    for (int i = 0; i < a->count; i++) {
+        lval_print(a->cell[i]); putchar(' ');
+    }
+
+    putchar('\n');
+    lval_del(a);
+
+    return lval_sexpr();
+}
+
+lval *builtin_error(lenv *e, lval *a) {
+    LASSERT_NUM(a, "error", 1);
+    LASSERT_TYPE(a, "error", 0, LVAL_STR);
+
+    // Construct error from first argument
+    lval *err = lval_err(a->cell[0]->str);
+
+    // Delete arguments and return
+    lval_del(a);
+    return err;
+}
 
 lval *builtin_def(lenv *e, lval *a) {
     return builtin_var(e, a, "def");
