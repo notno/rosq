@@ -1,30 +1,30 @@
-// A simpler way to define functions
+;  A simpler way to define functions
 def {fun} (\ {args body} {def (head args) (\ (tail args) body)})
 
-// Curry
+;  Curry
 fun {curry f xs} {eval (join (list f) xs)}
 
-// Uncurry
+;  Uncurry
 fun {uncurry f & xs} {f xs}
 
-// Second in a list
+;  Second in a list
 fun {second list} {head (tail list)}
 
-// Uncurried head function
+;  Uncurried head function
 def {head-uncurried} (\ {& i} {head i})
-// OR
+;  OR
 def {head-uncurried} (eval (uncurry head))
 
-// Length of a list, using recursion
+;  Length of a list, using recursion
 fun {len l} { if (== l {}) {0} {+ 1 (len (tail l))}}
 
-// Reverse a list, using recursion
+;  Reverse a list, using recursion
 fun {reverse l} {if (== l {}) {{}} {join (reverse (tail l)) (head l)}}
 
-// Returns nth item of a list (recursive)
+;  Returns nth item of a list (recursive)
 fun {nth n qx} {if (== n 0) {head qx} {nth (- n 1) (tail qx)}}
 
-// returns 1 if an element is a member of a list, otherwise 0. (recursive)
+;  returns 1 if an element is a member of a list, otherwise 0. (recursive)
 fun {has qx sym} {
     if (!= qx {}) {
         if (== (head qx) sym) {
@@ -37,7 +37,7 @@ fun {has qx sym} {
     }
 }
 
-// returns the last element of a list.
+;  returns the last element of a list.
 fun {last qx} {
     if (== (tail qx) {}) {
         head qx
@@ -46,7 +46,7 @@ fun {last qx} {
     }
 }
 
-// Lisp logical operator functions such as or, and and not.
+;  Lisp logical operator functions such as or, and and not.
 fun {or test1 test2} {
     if (|| test1 test2) {
         1

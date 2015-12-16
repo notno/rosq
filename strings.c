@@ -172,6 +172,9 @@ void lenv_add_builtins(lenv *e) {
     // Environment functions
     lenv_add_builtin(e, "env", builtin_env);
     lenv_add_builtin(e, "exit", builtin_exit);
+
+    // File functions
+    lenv_add_builtin(e, "load", builtin_load);
 }
 
 
@@ -1044,6 +1047,7 @@ lval *builtin_exit() {
  * * * * */
 
 int main(int argc, char **argv) {
+
     // AST Parsers
     mpc_parser_t *String   = mpc_new("string");
     mpc_parser_t *Comment  = mpc_new("comment");
@@ -1075,22 +1079,37 @@ int main(int argc, char **argv) {
     lenv *e = lenv_new();
     lenv_add_builtins(e);
 
-    while (1) {
-        char *input = readline("Rosq> ");
-        add_history(input);
+    if (argc >= 2) {
+        // Loop over each supplied filename (starting from 1)
+        for (int i = 1; i < argc; i++) {
+            // Argument list with a single argument, the filename
+            lval *args = lval_add(lval_sexpr(), lval_str(argv[i]));
 
-        mpc_result_t r;
-        if (mpc_parse("<stdin>", input, Rosq, &r)) {
-            lval *x = lval_eval(e, lval_read(r.output));
-            lval_println(x);
+            // Pass to builtin load and get the result
+            lval *x = builtin_load(e, args);
+
+            // If the result is an error, be sure to print it
+            if (x->type == LVAL_ERR) { lval_println(x); }
             lval_del(x);
-            mpc_ast_delete(r.output);
-        } else {
-            mpc_err_print(r.error);
-            mpc_err_delete(r.error);
         }
+    } else {
+        while (1) {
+            char *input = readline("Rosq> ");
+            add_history(input);
 
-        free(input);
+            mpc_result_t r;
+            if (mpc_parse("<stdin>", input, Rosq, &r)) {
+                lval *x = lval_eval(e, lval_read(r.output));
+                lval_println(x);
+                lval_del(x);
+                mpc_ast_delete(r.output);
+            } else {
+                mpc_err_print(r.error);
+                mpc_err_delete(r.error);
+            }
+
+            free(input);
+        }
     }
 
     lenv_del(e);
