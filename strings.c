@@ -1,10 +1,10 @@
-#include "mpc.h"
+/* * * * * * * * * * * *
+ * Rosq: A Lispy Lisp  *
+ * * * * * * * * * * * */
+
 #include "strings.h"
-#include <stdbool.h>
-#include <string.h>
 
 const char *VERSION_STRING = "0.14.0";
-
 
 // Lisp Environment
 struct lenv {
@@ -279,6 +279,47 @@ lval *lval_qexpr(void) {
 /* * * * * * * * * * * * *
 * LVAL HELPER FUNCTIONS *
 * * * * * * * * * * * * */
+
+lval *builtin_load(lenv *e, lval *a) {
+    LASSERT_NUM(a, "load", 1);
+    LASSERT_TYPE(a, "load", 0, LVAL_STR);
+
+    // Parse file given by string name
+    mpc_result_t r;
+    if (mpc_parse_contents(a->cell[0]->str, Rosq, &r)){
+        // Read contents
+        lval *expr = lval_read(r.output);
+        mpc_ast_delete(r.output);
+
+        // Evaluate each Expression
+        while (expr->count) {
+            lval *x = lval_eval(e, lval_pop(expr, 0));
+            //If evaluation leads to error print it
+            if (x->type == LVAL_ERR) { lval_println(x); }
+            lval_del(x);
+        }
+
+        // Delete expressions and arguments
+        lval_del(expr);
+        lval_del(a);
+
+        // Return empty list
+        return lval_sexpr();
+
+    } else {
+        // Get parse error as string
+        char *err_msg = mpc_err_string(r.error);
+        mpc_err_delete(r.error);
+
+        // Create a new error message using it
+        lval *err = lval_err("Could not load Library %s", err_msg);
+        free(err_msg);
+        lval_del(a);
+
+        // Cleanup and return error
+        return err;
+    }
+}
 
 lval *lval_copy(lval *v) {
 
@@ -792,7 +833,7 @@ lval *builtin_list(lenv *e, lval *a) {
     return a;
 }
 
-//  builtin_join() joins 2+ Q-Expressions
+// builtin_join() joins 2+ Q-Expressions
 lval *builtin_join(lenv *e, lval *a) {
     for (int i = 0; i < a->count; i++) {
         LASSERT_TYPE(a, "join", i, LVAL_QEXPR);
@@ -808,7 +849,8 @@ lval *builtin_join(lenv *e, lval *a) {
     return x;
 }
 
-//  builtin_cons() takes a value and a Q-Expression and appends the value to the front of the Q-Expression
+// builtin_cons() takes a value and a Q-Expression and
+// appends the value to the front of the Q-Expression
 lval *builtin_cons(lenv *e, lval *a) {
     LASSERT_NUM(a, "cons", 2);
     LASSERT_TYPE(a, "cons", 0, LVAL_NUM);
@@ -1002,6 +1044,7 @@ lval *builtin_exit() {
  * * * * */
 
 int main(int argc, char **argv) {
+    // AST Parsers
     mpc_parser_t *String   = mpc_new("string");
     mpc_parser_t *Comment  = mpc_new("comment");
     mpc_parser_t *Number   = mpc_new("number");

@@ -1,3 +1,5 @@
+#include "mpc.h"
+#include <stdbool.h>
 
 #ifdef _WIN32
 
@@ -66,6 +68,11 @@ char *ltype_name(int t) {
 
 typedef lval*(*lbuiltin)(lenv*, lval*);
 
+mpc_parser_t *Rosq;
+
+lval *lval_read_num(mpc_ast_t *t);
+lval *lval_read(mpc_ast_t *t);
+
 lenv *lenv_new(void);
 void lenv_del(lenv *e);
 lval *lenv_get(lenv *e, lval *k);
@@ -83,8 +90,6 @@ lval *lval_qexpr(void);
 
 lval *lval_copy(lval *v);
 void lval_del(lval *v);
-lval *lval_read_num( mpc_ast_t *t);
-lval *lval_read(mpc_ast_t *t);
 lval *lval_add(lval *v, lval *x);
 void lval_expr_print(lval *v, char open, char close);
 void lval_print(lval *v);
@@ -97,6 +102,8 @@ lval *lval_take(lval *v, int i);
 lval *lval_eval_sexpr(lenv *e, lval *v);
 lval *lval_eval(lenv *e, lval *v);
 lval *lval_call(lenv *e, lval *f, lval *a);
+
+lval *builtin_load(lenv *e, lval *a);
 
 lval *builtin_if(lenv *e, lval *a);
 lval *builtin_and(lenv *e, lval *a);
