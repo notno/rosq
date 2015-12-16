@@ -684,6 +684,7 @@ lval *builtin_load(lenv *e, lval *a) {
 
     // Parse file given by string name
     mpc_result_t r;
+
     if (mpc_parse_contents(a->cell[0]->str, Rosq, &r)){
         // Read contents
         lval *expr = lval_read(r.output);
@@ -705,6 +706,7 @@ lval *builtin_load(lenv *e, lval *a) {
         return lval_sexpr();
 
     } else {
+        puts("FOO2");
         // Get parse error as string
         char *err_msg = mpc_err_string(r.error);
         mpc_err_delete(r.error);
@@ -721,7 +723,6 @@ lval *builtin_load(lenv *e, lval *a) {
 
 lval *builtin_print(lenv *e, lval *a) {
     // Print each argument followed by a space
-    puts("foo");
     for (int i = 0; i < a->count; i++) {
         lval_print(a->cell[i]); putchar(' ');
     }
@@ -1075,52 +1076,40 @@ lval *builtin_exit() {
 int main(int argc, char **argv) {
 
     // AST Parsers
-    mpc_parser_t *String   = mpc_new("string");
-    mpc_parser_t *Comment  = mpc_new("comment");
-    mpc_parser_t *Number   = mpc_new("number");
-    mpc_parser_t *Symbol   = mpc_new("symbol");
-    mpc_parser_t *Sexpr    = mpc_new("sexpr");
-    mpc_parser_t *Qexpr    = mpc_new("qexpr");
-    mpc_parser_t *Expr     = mpc_new("expr");
-    mpc_parser_t *Rosq     = mpc_new("rosq");
+    String   = mpc_new("string");
+    Comment  = mpc_new("comment");
+    Number   = mpc_new("number");
+    Symbol   = mpc_new("symbol");
+    Sexpr    = mpc_new("sexpr");
+    Qexpr    = mpc_new("qexpr");
+    Expr     = mpc_new("expr");
+    Rosq     = mpc_new("rosq");
 
     mpca_lang(MPCA_LANG_DEFAULT,
         "                                              \
-        string  : /\"(\\\\.|[^\"])*\"/                 \
-        comment : /;[^\\r\\n]*/;                       \
+        string  : /\"(\\\\.|[^\"])*\"/ ;               \
+        comment : /;[^\\r\\n]*/ ;                      \
         number  : /-?[0-9]+/ ;                         \
         symbol  : /[a-zA-Z0-9_+\\-*\\/\\\\=<>|!&]+/;   \
         sexpr   : '(' <expr>* ')' ;                    \
         qexpr   : '{' <expr>* '}' ;                    \
         expr    : <string> | <comment> | <number>      \
-                | <symbol> | <sexpr> | <qexpr>         \
+                | <symbol> | <sexpr> | <qexpr> ;       \
         rosq     : /^/ <expr>* /$/ ;                   \
         ",
         String, Comment, Number, Symbol,
         Sexpr,  Qexpr,   Expr,   Rosq);
 
-    printf("Rosq Version %s\n", VERSION_STRING);
-    puts("Press Ctrl+C to Exit, or type 'exit 1'\n");
 
     lenv *e = lenv_new();
     lenv_add_builtins(e);
 
-    if (argc >= 2) {
-        // Loop over each supplied filename (starting from 1)
-        for (int i = 1; i < argc; i++) {
-            // Argument list with a single argument, the filename
-            lval *args = lval_add(lval_sexpr(), lval_str(argv[i]));
+    if (argc == 1) {
+        printf("Rosq Version %s\n", VERSION_STRING);
+        puts("Press Ctrl+C to Exit, or type 'exit 1'\n");
 
-            // Pass to builtin load and get the result
-            lval *x = builtin_load(e, args);
-
-            // If the result is an error, be sure to print it
-            if (x->type == LVAL_ERR) { lval_println(x); }
-            lval_del(x);
-        }
-    } else {
         while (1) {
-            char *input = readline("Rosq> ");
+            char *input = readline("rosq> ");
             add_history(input);
 
             mpc_result_t r;
@@ -1135,6 +1124,21 @@ int main(int argc, char **argv) {
             }
 
             free(input);
+        }
+    }
+
+    if (argc >= 2) {
+        // Loop over each supplied filename (starting from 1)
+        for (int i = 1; i < argc; i++) {
+            // Argument list with a single argument, the filename
+            lval *args = lval_add(lval_sexpr(), lval_str(argv[i]));
+
+            // Pass to builtin load and get the result
+            lval *x = builtin_load(e, args);
+
+            // If the result is an error, be sure to print it
+            if (x->type == LVAL_ERR) { lval_println(x); }
+            lval_del(x);
         }
     }
 

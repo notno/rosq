@@ -44,10 +44,6 @@
 
 // Forward declare functions
 
-struct lval;
-struct lenv;
-typedef struct lval lval;
-typedef struct lenv lenv;
 
 enum { LVAL_NUM, LVAL_ERR, LVAL_SYM, LVAL_BOOL, LVAL_STR,
        LVAL_FUN, LVAL_SEXPR, LVAL_QEXPR };
@@ -66,9 +62,21 @@ char *ltype_name(int t) {
   }
 }
 
+struct lval;
+struct lenv;
+typedef struct lval lval;
+typedef struct lenv lenv;
+
 typedef lval*(*lbuiltin)(lenv*, lval*);
 
-mpc_parser_t *Rosq;
+mpc_parser_t *String ;
+mpc_parser_t *Comment;
+mpc_parser_t *Number ;
+mpc_parser_t *Symbol ;
+mpc_parser_t *Sexpr  ;
+mpc_parser_t *Qexpr  ;
+mpc_parser_t *Expr   ;
+mpc_parser_t *Rosq   ;
 
 lval *lval_read_num(mpc_ast_t *t);
 lval *lval_read(mpc_ast_t *t);

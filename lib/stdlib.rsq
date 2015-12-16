@@ -1,2 +1,0 @@
-;  A simpler way to define functions
-def {fun} (\ {args body} {def (head args) (\ (tail args) body)})
