@@ -22,25 +22,22 @@
 
 // Macros
 #define LASSERT(args, cond, fmt, ...) \
-  if (!(cond)) { \
-    lval *err = lval_err(fmt, ##__VA_ARGS__); \
-    lval_del(args); \
-    return err; \
-  }
-#define LASSERT_TYPE(args, name, index, type_needed) \
-  if (a->cell[index]->type != type_needed) { \
-    "Function %s passed incorrect type for argument %i. Got %s. Wanted %s", \
-    name, index, ltype_name(args->cell[index]->type), ltype_name(type_needed); \
-  }
-#define LASSERT_NUM(args, func_name, num_needed) \
-  if (args->count != num_needed) { \
-    lval *err = lval_err("Function %s got wrong # of arguments, %i needed, %i given", \
-    func_name, num_needed, args->count); \
-    lval_del(args); \
-    return err; \
-  }
-#define LASSERT_NOT_EMPTY(args) \
-  if (args->count == 0) { lval_del(args); return lval_err("Arguments missing."); }
+if (!(cond)) { lval* err = lval_err(fmt, ##__VA_ARGS__); lval_del(args); return err; }
+
+#define LASSERT_TYPE(args, func, index, expect) \
+    LASSERT(args, args->cell[index]->type == expect, \
+        "Function '%s' passed incorrect type for argument %i. Got %s, Expected %s.", \
+        func, index, ltype_name(args->cell[index]->type), ltype_name(expect))
+
+#define LASSERT_NUM(args, func, num) \
+    LASSERT(args, args->count == num, \
+        "Function '%s' passed incorrect number of arguments. Got %i, Expected %i.", \
+        func, args->count, num)
+
+#define LASSERT_NOT_EMPTY(args, func, index) \
+    LASSERT(args, args->cell[index]->count != 0, \
+        "Function '%s' passed {} for argument %i.", func, index);
+
 
 // Forward declare functions
 

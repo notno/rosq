@@ -512,6 +512,14 @@ lval *lval_add(lval *v, lval *x) {
 }
 
 lval *lval_join(lval *x , lval *y) {
+    // If they're both strings
+    if (x->type == LVAL_STR && y->type == LVAL_STR) {
+        x->str = realloc(x->str, sizeof(x->str) + sizeof(y->str) + 1);
+        strcat(x->str, y->str);
+        lval_del(y);
+        return x;
+    }
+
     // For each cell in 'y' add it to 'x'
     while (y->count) {
         x = lval_add(x, lval_pop(y, 0));
@@ -819,7 +827,7 @@ lval *builtin_len(lenv *e, lval *a) {
 //  builtin_head() returns just the first element, deletes rest
 lval *builtin_head(lenv *e, lval *a) {
     LASSERT_NUM(a, "head", 1);
-    LASSERT_NOT_EMPTY(a);
+    LASSERT_NOT_EMPTY(a, "head", 0);
     LASSERT_TYPE(a, "head", 0, LVAL_QEXPR);
 
     // Otherwise take first argument
@@ -835,7 +843,7 @@ lval *builtin_tail(lenv *e, lval *a) {
     // Check error conditions
     LASSERT_NUM(a, "tail", 1);
     LASSERT_TYPE(a, "tail", 0, LVAL_QEXPR);
-    LASSERT_NOT_EMPTY(a);
+    LASSERT_NOT_EMPTY(a, "tail", 0);
 
     // Take first argument
     lval *v = lval_take(a, 0);
@@ -849,7 +857,7 @@ lval *builtin_tail(lenv *e, lval *a) {
 lval *builtin_init(lenv *e, lval *a) {
     LASSERT_NUM(a, "init",  1);
     LASSERT_TYPE(a, "init", 0, LVAL_QEXPR);
-    LASSERT_NOT_EMPTY(a);
+    LASSERT_NOT_EMPTY(a, "init", 0);
 
     lval *v = lval_take(a, 0);
 
@@ -865,8 +873,19 @@ lval *builtin_list(lenv *e, lval *a) {
 
 // builtin_join() joins 2+ Q-Expressions
 lval *builtin_join(lenv *e, lval *a) {
+    // Make sure args are strings or qexprs, and all the same type.
+    int t = a->cell[0]->type;
     for (int i = 0; i < a->count; i++) {
-        LASSERT_TYPE(a, "join", i, LVAL_QEXPR);
+        if (a->cell[i]->type != LVAL_QEXPR && a->cell[i]->type != LVAL_STR) {
+            lval_del(a);
+            return lval_err("'Join' needs a string or a Q-expression. "
+                "Got %s", ltype_name(a->cell[i]->type));
+        } else if (a->cell[i]->type != t) {
+            lval_del(a);
+            return lval_err("'Join' needs all args to be the same type. "
+                "Got %s and %s, for example.", ltype_name(t),
+                ltype_name(a->cell[i]->type));
+        }
     }
 
     lval *x = lval_pop(a, 0);
